@@ -96,9 +96,16 @@ def connect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(SSID, PASSWORD)
+    i = 5
     while wlan.isconnected() == False:
-        print('Waiting for connection...')
-        sleep(1)
+        lcd.move_to(3, 0) 
+        lcd.putstr("Connecting")
+        lcd.move_to(i, 1)
+        lcd.putstr('.')
+        i = i + 1
+        time.sleep(1)
+        
+    lcd.clear()
     ip = wlan.ifconfig()[0]
     print(f'Connected on {ip}')
     return ip
@@ -129,6 +136,7 @@ def set_time():
     tm = time.gmtime(t)
     machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
     
+
 # For future additions
 def webpage(temperature, humidity, file):
     #Template HTML
@@ -146,32 +154,29 @@ def webpage(temperature, humidity, file):
             </body>
             </html>
             """
+    return html
 
 # For future additions
 def serve(connection):
     #Start a web server
-    state = 'OFF'
-    pico_led.off()
-    temperature = 0
-    while True:
-        client = connection.accept()[0]
-        request = client.recv(1024)
-        request = str(request)
-        try:
-            request = request.split()[1]
-        except IndexError:
-            pass
-        if request == '/downloadfile?':
-            downloadfile()
-        elif request =='/deletefile?':
-            deletefile()
-        html = webpage(temperature, humidity, "./data.csv")
-        client.send(html)
-        client.close()
-    
-ip = connect()
+    client = connection.accept()[0]
+    request = client.recv(1024)
+    request = str(request)
+    try:
+        request = request.split()[1]
+    except IndexError:
+        pass
+    if request == '/downloadfile?':
+        downloadfile()
+    elif request =='/deletefile?':
+        deletefile()
+    html = webpage(temperature, humidity, "./data.csv")
+    client.send(html)
+    client.close()
+
 
 # Connect to the internet, then display the date
+connect()
 led.on()
 set_time()
 lcd.move_to(6, 0) 
@@ -182,8 +187,14 @@ time.sleep(2)
 lcd.clear()
 led.off()
 
+
 # For future additions
 connection = open_socket(ip)
+
+# Create a rounded variable for the temperature and humidity
+temperature = round(measurements['t'] * 2) / 2
+humidity = round(measurements['rh'], 1)
+tempnow = round(measurements['t'],1)
 
 # For the current display
 display = ""
@@ -195,9 +206,12 @@ while True:
     else:
         lcd.backlight_on()
     
+    measurements = dht20.measurements
+    
     # Create a rounded variable for the temperature and humidity
     temperature = round(measurements['t'] * 2) / 2
     humidity = round(measurements['rh'], 1)
+    tempnow = round(measurements['t'],1)
     
     if temperature < IDEAL_TEMP - 3:
         temperature = IDEAL_TEMP - 3
@@ -333,3 +347,4 @@ while True:
     ring.write()
     
     time.sleep(0.4)
+
