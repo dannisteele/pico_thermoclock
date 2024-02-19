@@ -270,7 +270,7 @@ while True:
     
 
     
-    if (minute % 5 == 0
+    if (minute % 30 == 0
         and second == 0):
         file=open("data.csv","a+")
         if (lastLine != "{}-{}-{}".format(yearstring, monthstring, daystring)
@@ -316,7 +316,5 @@ while True:
     
     ring[LEDindex] = LEDcolours[LEDindex] # Light the index LED
     ring.write() # Write the LED data
-    
-    serve(connection)
     
     time.sleep(0.4)
