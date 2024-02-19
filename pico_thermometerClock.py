@@ -6,37 +6,29 @@ from dht20 import DHT20
 from neopixel import NeoPixel
 from lcd_api import LcdApi
 from pico_i2c_lcd import I2cLcd
+from pico_thermometer_constants import *
 
 # Network imports
 import network
 import socket
 import struct
 
-# Constants
-NTP_DELTA = 2208988800
-HOST = "pool.ntp.org"
-SSID = 'HOSTNAME'
-PASSWORD = 'PASSWORD'
-LED_PIN = "LED"
-POTENTIOMETER_PIN = 28
-I2C_SDA_PIN = 14
-I2C_SCL_PIN = 15
-NEOPIXEL_PIN = 2
-
 # Configuration
 i2c1_sda = Pin(I2C_SDA_PIN)
 i2c1_scl = Pin(I2C_SCL_PIN)
-i2c1 = I2C(1, sda=i2c1_sda, scl=i2c1_scl)
+i2c1 = I2C(I2C_INTERFACE, sda=i2c1_sda, scl=i2c1_scl)
 potentiometer = ADC(Pin(POTENTIOMETER_PIN))
-led = Pin("LED", Pin.OUT)
-dht20 = DHT20(0x38, i2c1)
-lcdi2c = I2C(1, sda=machine.Pin(I2C_SDA_PIN), scl=machine.Pin(I2C_SCL_PIN), freq=400000)
-lcd = I2cLcd(lcdi2c, 0x27, 2, 16)
-ring = NeoPixel(Pin(NEOPIXEL_PIN), 12)
-IDEAL_TEMP = 20
+led = Pin(LED_PIN, Pin.OUT)
+dht20 = DHT20(DHT20_ADDRESS, i2c1)
+lcdi2c = I2C(LCD_INTERFACE, sda=machine.Pin(I2C_SDA_PIN), scl=machine.Pin(I2C_SCL_PIN), freq=400000)
+lcd = I2cLcd(lcdi2c, LCD_ADDRESS, LCD_ROWS, LCD_COLUMNS)
+ring = NeoPixel(Pin(NEOPIXEL_PIN), NEOPIXEL_LCD_TOTAL)
 uart = UART(0, baudrate=115200)
 uart.init(115200, bits=8, parity=None, stop=1, tx=Pin(0), rx=Pin(1))
 uos.dupterm(uart)
+
+# What is the ideal temperature for you in 
+IDEAL_TEMP = 20
 
 # Create a temperature/LED dictionary for our scale
 # Temperature is the key (left), LED index is the value (right)
@@ -55,6 +47,7 @@ LEDdict = {
   IDEAL_TEMP + 2.5: 11,
 }
 
+# Possible colours, from blue, to green, to red
 LEDcolours = [
     (0,0,10),
     (0,2,8),
@@ -86,14 +79,19 @@ except OSError:
     
 firstline = file.readline()
 file.close()
+
+# Check if the file does not exist, or if the first line is something that we do not expect
 if (uos.stat('data.csv')[6] == 0 or firstline != "Date,Time,Temperature,Humidity\n"):
     file=open("data.csv","w")
     file.write("Date,Time,Temperature,Humidity\n")
     file.close()
+
+# Get the date and time from the last line in the file.
 file=open("data.csv","a+")
 lastLine = file.readlines()[-1][:19]
 file.close()
 
+# Connect to the internet
 def connect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
@@ -105,6 +103,7 @@ def connect():
     print(f'Connected on {ip}')
     return ip
     
+# For future additions
 def open_socket(ip):
     # Open a socket
     address = (ip, 80)
@@ -113,6 +112,7 @@ def open_socket(ip):
     connection.listen(1)
     return connection
 
+# Ensures that time.localtime() is correct
 def set_time():
     NTP_QUERY = bytearray(48)
     NTP_QUERY[0] = 0x1B
@@ -129,7 +129,8 @@ def set_time():
     tm = time.gmtime(t)
     machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
     
-    def webpage(temperature, humidity, file):
+# For future additions
+def webpage(temperature, humidity, file):
     #Template HTML
     html = f"""
             <!DOCTYPE html>
@@ -146,6 +147,7 @@ def set_time():
             </html>
             """
 
+# For future additions
 def serve(connection):
     #Start a web server
     state = 'OFF'
@@ -169,6 +171,7 @@ def serve(connection):
     
 ip = connect()
 
+# Connect to the internet, then display the date
 led.on()
 set_time()
 lcd.move_to(6, 0) 
@@ -179,7 +182,11 @@ time.sleep(2)
 lcd.clear()
 led.off()
 
+# For future additions
 connection = open_socket(ip)
+
+# For the current display
+display = ""
 
 # The code
 while True:
@@ -219,9 +226,10 @@ while True:
         
         # Create variable for current temp
         tempnow = round(measurements['t'],1)
-        
+
         # Write initial low temp value to LCD
-        if (second == 0 or second == 20 or second == 40):
+        if ((second == 0 or second == 20 or second == 40) and display != "temp"):
+            display = "temp"
             lcd.clear()
             lcd.putstr("Current:")
             lcd.move_to(0, 1) # Move to second row
@@ -250,26 +258,26 @@ while True:
             hightemp = tempnow
     
     else:
-        if (second == 10 or second == 30 or second == 50):
+        if ((second == 10 or second == 30 or second == 50) and display != "time"):
+            display = "time"
             lcd.clear()
-        lcd.move_to(6, 0) 
-        lcd.putstr("Time")
-        lcd.move_to(4, 1)
-        lcd.putstr(hourstring + ":" + minutestring + ":" + secondstring)
+            lcd.move_to(6, 0) 
+            lcd.putstr("Time")
+            lcd.move_to(4, 1)
+            lcd.putstr(hourstring + ":" + minutestring + ":" + secondstring)
     
-    # Print the temperature and index
-    print(f"Current time: {hourstring}:{minutestring}:{secondstring}")
-    print("Temperature:",round(measurements['t'],2))
-    print("Rounded temp:", temperature)
-    print(f"Humidity:    {humidity}%")
-    print("----------------")
+    # Print the temperature and index for debugging
+    # print(f"Current time: {hourstring}:{minutestring}:{secondstring}")
+    # print("Temperature:",round(measurements['t'],2))
+    # print("Rounded temp:", temperature)
+    # print(f"Humidity:    {humidity}%")
+    # print("----------------")
             
     # Clear the ring
     ring.fill((0,0,0))
     ring.write()
     
-
-    
+    # Write the info to data.csv every half hour
     if (minute % 30 == 0
         and second == 0):
         file=open("data.csv","a+")
@@ -286,8 +294,11 @@ while True:
             print("-------------------")
             print("")
         file.close()
-        
+    
+    # Manage the logic for on the hour every hour
     if (minute == 0 and second == 0):
+        
+        # If it is midnight, reset the low and high temps
         if (hour == 0):
             lcd.putstr("Current:")
             lcd.move_to(0, 1)
@@ -295,6 +306,7 @@ while True:
             lowtemp = round(measurements['t'],1)
             hightemp = round(measurements['t'],1)
             
+        # If it is midnight or midday, set the LED to spin
         if (hour % 12 == 0):
             for i in range(12):
                 for i in range(12):
@@ -305,16 +317,19 @@ while True:
                     time.sleep(0.05)
                     ring.fill((0,0,0))
                     ring.write()
-                    
-        for i in range(hour % 12):
-            ring.fill(LEDcolours[LEDindex])
-            ring.write()
-            time.sleep(0.3)
-            ring.fill((0,0,0))
-            ring.write()
-            time.sleep(0.8)    
+
+        # Otherwise, pulse the amount for the current hour            
+        else: 
+            for i in range(hour % 12):
+                ring.fill(LEDcolours[LEDindex])
+                ring.write()
+                time.sleep(0.3)
+                ring.fill((0,0,0))
+                ring.write()
+                time.sleep(0.8)    
     
-    ring[LEDindex] = LEDcolours[LEDindex] # Light the index LED
-    ring.write() # Write the LED data
+    # Light the LED dependent on temperature
+    ring[LEDindex] = LEDcolours[LEDindex]
+    ring.write()
     
     time.sleep(0.4)
