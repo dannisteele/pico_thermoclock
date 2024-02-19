@@ -18,3 +18,6 @@ On the hour, every hour, it will pulse all of the lights. The frequency of this 
 At midnight and midday, the lights will spiral around the ring 12 times, just for something a little different.
 Every 10 seconds, the attached LCD screen alternates between showing the time, and showing the current temperature as well as the highest and lowest it has been through the day. 
 Every midnight, the highest and lowest temperatures reset.
+
+# Notes
+There are some areas of the code that are not used as I intend to add to it in the future, such as using sockets to update a local web page where the user can download the data.csv file rather than needing to plug the Pico directly into a computer. These parts are not commented out presently, but do not interact with the code.
