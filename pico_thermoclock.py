@@ -6,7 +6,7 @@ from dht20 import DHT20
 from neopixel import NeoPixel
 from lcd_api import LcdApi
 from pico_i2c_lcd import I2cLcd
-from pico_thermometer_constants import *
+from pico_thermoclock_constants import *
 
 # Network imports
 import network
