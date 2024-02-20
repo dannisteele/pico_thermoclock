@@ -96,21 +96,33 @@ def connect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(SSID, PASSWORD)
+    i = 6
     while wlan.isconnected() == False:
-        print('Waiting for connection...')
-        sleep(1)
+        lcd.move_to(3, 0) 
+        lcd.putstr("Connecting")
+        lcd.move_to(i, 1) 
+        lcd.putstr(".")
+        i = i + 1
+        time.sleep(1)
+    lcd.clear()
     ip = wlan.ifconfig()[0]
+    lcd.move_to(3, 0) 
+    lcd.putstr("Connected!")
+    lcd.move_to(1, 1) 
+    lcd.putstr(ip)
     print(f'Connected on {ip}')
+    time.sleep(3)
+    lcd.clear()
     return ip
     
 # For future additions
-def open_socket(ip):
-    # Open a socket
-    address = (ip, 80)
-    connection = socket.socket()
-    connection.bind(address)
-    connection.listen(1)
-    return connection
+# def open_socket(ip):
+#     # Open a socket
+#     address = (ip, 80)
+#     connection = socket.socket()
+#     connection.bind(address)
+#     connection.listen(1)
+#     return connection
 
 # Ensures that time.localtime() is correct
 def set_time():
@@ -130,45 +142,45 @@ def set_time():
     machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
     
 # For future additions
-def webpage(temperature, humidity, file):
-    #Template HTML
-    html = f"""
-            <!DOCTYPE html>
-            <html>
-            <form action="./downloadfile">
-            <a href="./data.csv" download><input type="submit" value="Download Data" /></a>
-            </form>
-            <form action="./deletefile">
-            <input type="submit" value="Delete file" />
-            </form>
-            <p>Temperature is {temperature}</p>
-            <p>Humidity is {humidity}</p>
-            </body>
-            </html>
-            """
+# def webpage(temperature, humidity, file):
+#    #Template HTML
+#    html = f"""
+#            <!DOCTYPE html>
+#            <html>
+#            <form action="./downloadfile">
+#            <a href="./data.csv" download><input type="submit" value="Download Data" /></a>
+#            </form>
+#            <form action="./deletefile">
+#            <input type="submit" value="Delete file" />
+#            </form>
+#            <p>Temperature is {temperature}</p>
+#            <p>Humidity is {humidity}</p>
+#            </body>
+#            </html>
+#            """
 
 # For future additions
-def serve(connection):
-    #Start a web server
-    state = 'OFF'
-    pico_led.off()
-    temperature = 0
-    while True:
-        client = connection.accept()[0]
-        request = client.recv(1024)
-        request = str(request)
-        try:
-            request = request.split()[1]
-        except IndexError:
-            pass
-        if request == '/downloadfile?':
-            downloadfile()
-        elif request =='/deletefile?':
-            deletefile()
-        html = webpage(temperature, humidity, "./data.csv")
-        client.send(html)
-        client.close()
-    
+# def serve(connection):
+#    #Start a web server
+#    state = 'OFF'
+#    pico_led.off()
+#    temperature = 0
+#    while True:
+#        client = connection.accept()[0]
+#        request = client.recv(1024)
+#        request = str(request)
+#        try:
+#            request = request.split()[1]
+#        except IndexError:
+#            pass
+#        if request == '/downloadfile?':
+#            downloadfile()
+#        elif request =='/deletefile?':
+#            deletefile()
+#        html = webpage(temperature, humidity, "./data.csv")
+#        client.send(html)
+#        client.close()
+
 ip = connect()
 
 # Connect to the internet, then display the date
@@ -183,7 +195,7 @@ lcd.clear()
 led.off()
 
 # For future additions
-connection = open_socket(ip)
+# connection = open_socket(ip)
 
 # For the current display
 display = ""
@@ -332,4 +344,6 @@ while True:
     ring.write()
     
     time.sleep(0.4)
+
+
 
