@@ -74,27 +74,34 @@ hightemp = round(measurements['t'],1)
 # For the current display
 display = ""
 
+# To keep track of the last line of the csv file
+lastLine = ""
+
 def file_setup():
+    global lastLine
     # Create a header if there is not one already
     try:
-        file=open("data.csv","r")
+        file = open("data.csv","r")
     except OSError:
-        file=open("data.csv","a+")
+        file = open("data.csv","a+")
         file.write("Date,Time,Temperature,Humidity\n")
     
-    firstline = file.readline()
+    firstLine = file.readline()
+    print("firstLine = " + firstLine)
+
     file.close()
 
     # Check if the file does not exist, or if the first line is something that we do not expect
-    if (uos.stat('data.csv')[6] == 0 or firstline != "Date,Time,Temperature,Humidity\n"):
-        file=open("data.csv","w")
+    if (uos.stat('data.csv')[6] == 0 or firstLine != "Date,Time,Temperature,Humidity\n"):
+        file = open("data.csv","w")
         file.write("Date,Time,Temperature,Humidity\n")
         file.close()
 
     # Get the date and time from the last line in the file.
-    file=open("data.csv","a+")
+    file = open("data.csv","a+")
     lastLine = file.readlines()[-1][:19]
     file.close()
+
 
 # Connect to the internet
 def connect():
@@ -204,20 +211,21 @@ def display_date():
     led.off()
     
 def write_data():
+    global lastLine
     file=open("data.csv","a+")
-        if (lastLine != "{}-{}-{}".format(yearstring, monthstring, daystring)
-                       + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)):
-            file.write("{}-{}-{}".format(yearstring, monthstring, daystring)
-                       + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring) + ","
-                       + str(round(measurements['t'],2)) + "," + str(humidity) + "\n")
-            file.flush()
-            lastLine = "{}-{}-{}".format(yearstring, monthstring, daystring) + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)
-            print("")
-            print("-------------------")
-            print("Information written")
-            print("-------------------")
-            print("")
-        file.close()
+    if (lastLine is not None and lastLine != "" and lastLine != "{}-{}-{}".format(yearstring, monthstring, daystring)
+                  + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)):
+        file.write("{}-{}-{}".format(yearstring, monthstring, daystring)
+                  + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring) + ","
+                  + str(round(measurements['t'],2)) + "," + str(humidity) + "\n")
+        file.flush()
+        lastLine = "{}-{}-{}".format(yearstring, monthstring, daystring) + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)
+        print("")
+        print("-------------------")
+        print("Information written")
+        print("-------------------")
+        print("")
+    file.close()
 
 # Initial setup for main code
 file_setup()
@@ -226,7 +234,8 @@ display_date()
 
 # For future additions
 # connection = open_socket(ip)
-
+print("firstLine = " + firstLine)
+print("lastLine = " + lastLine)
 # The code
 while True:
     light_controller()
@@ -315,30 +324,9 @@ while True:
     
     # Write the info to data.csv every half hour
     if (minute % 30 == 0 and second == 0):
-        try:
-            write_data()
-        except Exception:
-            while True:
-                display = "error"
-                lcd.move_to(2, 0) 
-                lcd.putstr("File is full")
-                lcd.move_to(4, 1)
-                lcd.putstr(hourstring + ":" + minutestring + ":" + secondstring)
-                
-                count = 0
-                ring.fill((0,0,0))
-                ring.write()
-                r1 = random.randint(10)
-                r2 = random.randint(10)
-                r3 = random.randint(10)
-                ring[count] = [r1, r2, r3]
-                ring.write()
-                time.sleep(0.05)
-                ring.fill((0,0,0))
-                ring.write()
-                count = count + 1
-                if count == 12:
-                    count = 0
+        
+        write_data()
+        
         
     
     # Manage the logic for on the hour every hour
@@ -378,6 +366,8 @@ while True:
     ring.write()
     
     time.sleep(0.4)
+
+
 
 
 
