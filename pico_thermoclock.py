@@ -73,11 +73,12 @@ hightemp = round(measurements['t'],1)
 
 # For the current display
 display = ""
-firstLine = ""
+
+# To keep track of the last line of the csv file
 lastLine = ""
 
 def file_setup():
-    global firstLine, lastLine
+    global lastLine
     # Create a header if there is not one already
     try:
         file = open("data.csv","r")
