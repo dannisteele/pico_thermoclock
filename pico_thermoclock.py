@@ -2,6 +2,7 @@
 from machine import Pin, ADC, I2C, UART
 import time
 import uos
+import random
 from dht20 import DHT20
 from neopixel import NeoPixel
 from lcd_api import LcdApi
@@ -70,26 +71,30 @@ measurements = dht20.measurements
 lowtemp = round(measurements['t'],1)
 hightemp = round(measurements['t'],1)
 
-# Set up the file - create a header if there is not one already
-try:
-    file=open("data.csv","r")
-except OSError:
-    file=open("data.csv","a+")
-    file.write("Date,Time,Temperature,Humidity\n")
-    
-firstline = file.readline()
-file.close()
+# For the current display
+display = ""
 
-# Check if the file does not exist, or if the first line is something that we do not expect
-if (uos.stat('data.csv')[6] == 0 or firstline != "Date,Time,Temperature,Humidity\n"):
-    file=open("data.csv","w")
-    file.write("Date,Time,Temperature,Humidity\n")
+def file_setup():
+    # Create a header if there is not one already
+    try:
+        file=open("data.csv","r")
+    except OSError:
+        file=open("data.csv","a+")
+        file.write("Date,Time,Temperature,Humidity\n")
+    
+    firstline = file.readline()
     file.close()
 
-# Get the date and time from the last line in the file.
-file=open("data.csv","a+")
-lastLine = file.readlines()[-1][:19]
-file.close()
+    # Check if the file does not exist, or if the first line is something that we do not expect
+    if (uos.stat('data.csv')[6] == 0 or firstline != "Date,Time,Temperature,Humidity\n"):
+        file=open("data.csv","w")
+        file.write("Date,Time,Temperature,Humidity\n")
+        file.close()
+
+    # Get the date and time from the last line in the file.
+    file=open("data.csv","a+")
+    lastLine = file.readlines()[-1][:19]
+    file.close()
 
 # Connect to the internet
 def connect():
@@ -181,31 +186,50 @@ def set_time():
 #        client.send(html)
 #        client.close()
 
-ip = connect()
-
-# Connect to the internet, then display the date
-led.on()
-set_time()
-lcd.move_to(6, 0) 
-lcd.putstr("Date")
-lcd.move_to(4, 1)
-lcd.putstr(str(time.localtime()[2]) + "-" + str(time.localtime()[1]) + "-" + str(time.localtime()[0]))
-time.sleep(2)
-lcd.clear()
-led.off()
-
-# For future additions
-# connection = open_socket(ip)
-
-# For the current display
-display = ""
-
-# The code
-while True:
+def light_controller():
     if (potentiometer.read_u16() < 32000):
         lcd.backlight_off()
     else:
         lcd.backlight_on()
+        
+def display_date():
+    led.on()
+    set_time()
+    lcd.move_to(6, 0) 
+    lcd.putstr("Date")
+    lcd.move_to(4, 1)
+    lcd.putstr(str(time.localtime()[2]) + "-" + str(time.localtime()[1]) + "-" + str(time.localtime()[0]))
+    time.sleep(2)
+    lcd.clear()
+    led.off()
+    
+def write_data():
+    file=open("data.csv","a+")
+        if (lastLine != "{}-{}-{}".format(yearstring, monthstring, daystring)
+                       + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)):
+            file.write("{}-{}-{}".format(yearstring, monthstring, daystring)
+                       + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring) + ","
+                       + str(round(measurements['t'],2)) + "," + str(humidity) + "\n")
+            file.flush()
+            lastLine = "{}-{}-{}".format(yearstring, monthstring, daystring) + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)
+            print("")
+            print("-------------------")
+            print("Information written")
+            print("-------------------")
+            print("")
+        file.close()
+
+# Initial setup for main code
+file_setup()
+ip = connect()
+display_date()
+
+# For future additions
+# connection = open_socket(ip)
+
+# The code
+while True:
+    light_controller()
     
     # Create a rounded variable for the temperature and humidity
     temperature = round(measurements['t'] * 2) / 2
@@ -290,22 +314,32 @@ while True:
     ring.write()
     
     # Write the info to data.csv every half hour
-    if (minute % 30 == 0
-        and second == 0):
-        file=open("data.csv","a+")
-        if (lastLine != "{}-{}-{}".format(yearstring, monthstring, daystring)
-                       + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)):
-            file.write("{}-{}-{}".format(yearstring, monthstring, daystring)
-                       + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring) + ","
-                       + str(round(measurements['t'],2)) + "," + str(humidity) + "\n")
-            file.flush()
-            lastLine = "{}-{}-{}".format(yearstring, monthstring, daystring) + "," + "{}:{}:{}".format(hourstring, minutestring, secondstring)
-            print("")
-            print("-------------------")
-            print("Information written")
-            print("-------------------")
-            print("")
-        file.close()
+    if (minute % 30 == 0 and second == 0):
+        try:
+            write_data()
+        except Exception:
+            while True:
+                display = "error"
+                lcd.move_to(2, 0) 
+                lcd.putstr("File is full")
+                lcd.move_to(4, 1)
+                lcd.putstr(hourstring + ":" + minutestring + ":" + secondstring)
+                
+                count = 0
+                ring.fill((0,0,0))
+                ring.write()
+                r1 = random.randint(10)
+                r2 = random.randint(10)
+                r3 = random.randint(10)
+                ring[count] = [r1, r2, r3]
+                ring.write()
+                time.sleep(0.05)
+                ring.fill((0,0,0))
+                ring.write()
+                count = count + 1
+                if count == 12:
+                    count = 0
+        
     
     # Manage the logic for on the hour every hour
     if (minute == 0 and second == 0):
