@@ -337,10 +337,7 @@ while True:
     
     # Write the info to data.csv every half hour
     if (minute % 30 == 0 and second == 0):
-        
         write_data()
-        
-        
     
     # Manage the logic for on the hour every hour
     if (minute == 0 and second == 0):
@@ -364,6 +361,10 @@ while True:
                     time.sleep(0.05)
                     ring.fill((0,0,0))
                     ring.write()
+        
+        # Helpful for managing Daylight Savings
+        if (hour == 3):
+            machine.reset()
 
         # Otherwise, pulse the amount for the current hour            
         for i in range(hour % 12):
