@@ -73,12 +73,11 @@ hightemp = round(measurements['t'],1)
 
 # For the current display
 display = ""
-
-# To keep track of the last line of the csv file
+firstLine = ""
 lastLine = ""
 
 def file_setup():
-    global lastLine
+    global firstLine, lastLine
     # Create a header if there is not one already
     try:
         file = open("data.csv","r")
@@ -151,7 +150,21 @@ def set_time():
     val = struct.unpack("!I", msg[40:44])[0]
     t = val - NTP_DELTA    
     tm = time.gmtime(t)
+
+    # Adjust for DST based on UK rules
+    current_time = time.localtime(t)
+    last_sunday_march = max(25, (31 - (current_time[6] - 6) % 7))
+    last_sunday_october = max(25, (31 - (current_time[6] - 6) % 7))
+    dst_starts = time.mktime((current_time[0], 3, last_sunday_march, 1, 0, 0, 0, 0, -1))
+    dst_ends = time.mktime((current_time[0], 10, last_sunday_october, 2, 0, 0, 0, 0, -1))
+
+    if t >= dst_starts and t < dst_ends:
+        t += 3600  # Add 1 hour for DST
+        machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3] + 1, tm[4], tm[5], 0))
+        return
+
     machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
+
     
 # For future additions
 # def webpage(temperature, humidity, file):
@@ -324,10 +337,7 @@ while True:
     
     # Write the info to data.csv every half hour
     if (minute % 30 == 0 and second == 0):
-        
         write_data()
-        
-        
     
     # Manage the logic for on the hour every hour
     if (minute == 0 and second == 0):
@@ -351,6 +361,10 @@ while True:
                     time.sleep(0.05)
                     ring.fill((0,0,0))
                     ring.write()
+        
+        # Helpful for managing Daylight Savings
+        if (hour == 3):
+            machine.reset()
 
         # Otherwise, pulse the amount for the current hour            
         for i in range(hour % 12):
@@ -366,8 +380,3 @@ while True:
     ring.write()
     
     time.sleep(0.4)
-
-
-
-
-
