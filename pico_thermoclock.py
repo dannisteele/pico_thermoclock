@@ -184,7 +184,6 @@ def set_time():
 
     machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
 
-
 # For future additions
 # def webpage(temperature, humidity, file):
 #    #Template HTML
@@ -381,6 +380,10 @@ while True:
                     time.sleep(0.05)
                     ring.fill((0,0,0))
                     ring.write()
+        
+        # Helpful for managing Daylight Savings
+        if (hour == 3):
+            machine.reset()
 
         # Helpful for managing Daylight Savings
         if (hour == 3):
