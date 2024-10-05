@@ -1,5 +1,5 @@
 # Pico Thermoclock
-This code assumes the user has a Raspberry Pi Pico W, althoguh other wifi-enabled microcontrollers may also work.
+This code assumes the user has a Raspberry Pi Pico W, although other wifi-enabled microcontrollers may also work.
 
 Some modifications are necessary:
 - SSID hostname and password need replacing.
