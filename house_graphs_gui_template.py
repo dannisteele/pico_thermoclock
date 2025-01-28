@@ -17,11 +17,14 @@ def plot_data(year, root, frame, save_button):
         # Expand window to full screen
         root.state('zoomed')
         
-        # Set the database name here
+        # Change these values
+        mysql_username = 'root' # This is the default username
+        mysql_password = 'admin' # This is the default password
+        mysql_server = 'localhost' # This is the default server
         database_name = 'Something'
 
         # Database connection
-        db_connection = create_engine('mysql+mysqlconnector://root:admin@localhost/' + database_name)
+        db_connection = create_engine('mysql+mysqlconnector://' + mysql_username + ':' + mysql_password + '@' + mysql_server + '/' + database_name)
 
         # Query data
         daily_avg = read_sql('SELECT * FROM daily_avg', con=db_connection)
@@ -137,7 +140,7 @@ def import_data(root):
             raise FileNotFoundError(f"The file '{file_path}' does not exist.")
 
         # Establish database connection
-        db_connection = create_engine('mysql+mysqlconnector://root:admin@localhost/House')
+        db_connection = create_engine('mysql+mysqlconnector://' + mysql_username + ':' + mysql_password + '@' + mysql_server + '/' + database_name)
 
         data = read_csv(file_path)
 
@@ -152,9 +155,9 @@ def import_data(root):
         # Insert data into the table using pandas
         try:
             data.to_sql(database_name, con=db_connection, if_exists='append', index=False, method='multi')
-            messagebox.showinfo("Success", f"Data from {file_path} imported successfully into 'house'!")
+            messagebox.showinfo("Success", f"Data from {file_path} imported successfully into '{database_name}'!")
         except Exception as pandas_error:
-            messagebox.showerror("Error", f"Failed to import data into 'house': {pandas_error}")
+            messagebox.showerror("Error", f"Failed to import data into '{database_name}': {pandas_error}")
 
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
