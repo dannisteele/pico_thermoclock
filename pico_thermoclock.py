@@ -205,9 +205,15 @@ def start_web_server(connection):
                 <body>
                     <h1>Raspberry Pi Temperature Data</h1>
                     <a href="/data.csv" download>Download Data.csv</a><br><br>
-                    <a href="/delete">Delete Data.csv</a>
+                    <a href="/delete" onclick="return confirmDelete()">Delete Data.csv</a>
                 </body>
                 </html>
+
+                <script>
+                    function confirmDelete() {
+                        return confirm("Are you sure you want to delete Data.csv?");
+                    }
+                </script>
                 """
                 response_headers = (
                     "HTTP/1.1 200 OK\r\n"
