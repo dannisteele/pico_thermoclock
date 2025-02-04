@@ -11,20 +11,68 @@ from numpy import array, concatenate, amin, amax, reshape
 from sys import exit
 from os import path
 
+import configparser
+import os
+
+def get_config_path():
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller bundle
+        return os.path.join(sys._MEIPASS, "config.ini")
+    else:
+        # Running as a normal script
+        return "config.ini"
+
+CONFIG_FILE = get_config_path()
+
+def get_database_credentials():
+    config = configparser.ConfigParser()
+
+    # Check if config file exists
+    if os.path.exists(CONFIG_FILE):
+        config.read(CONFIG_FILE)
+        return (
+            config["DATABASE"]["mysql_username"],
+            config["DATABASE"]["mysql_password"],
+            config["DATABASE"]["mysql_server"],
+            config["DATABASE"]["database_name"],
+        )
+
+    # Ask user for credentials if not stored
+    from tkinter.simpledialog import askstring
+    from tkinter import Tk
+    
+    root = Tk()
+    root.withdraw()  # Hide the root window
+
+    mysql_username = askstring("Database Setup", "Enter MySQL Username:", initialvalue="root")
+    mysql_password = askstring("Database Setup", "Enter MySQL Password:", initialvalue="admin")
+    mysql_server = askstring("Database Setup", "Enter MySQL Server:", initialvalue="localhost")
+    database_name = askstring("Database Setup", "Enter Database Name:", initialvalue="Something")
+
+    # Save credentials to config file
+    config["DATABASE"] = {
+        "mysql_username": mysql_username,
+        "mysql_password": mysql_password,
+        "mysql_server": mysql_server,
+        "database_name": database_name,
+    }
+
+    with open(CONFIG_FILE, "w") as configfile:
+        config.write(configfile)
+
+    return mysql_username, mysql_password, mysql_server, database_name
+
 # Function to fetch data and plot
 def plot_data(year, root, frame, save_button):
     try:
         # Expand window to full screen
         root.state('zoomed')
         
-        # Change these values
-        mysql_username = 'root' # This is the default username
-        mysql_password = 'admin' # This is the default password
-        mysql_server = 'localhost' # This is the default server
-        database_name = 'Something'
+        # Get stored credentials
+        mysql_username, mysql_password, mysql_server, database_name = get_database_credentials()
 
         # Database connection
-        db_connection = create_engine('mysql+mysqlconnector://' + mysql_username + ':' + mysql_password + '@' + mysql_server + '/' + database_name)
+        db_connection = create_engine(f'mysql+mysqlconnector://{mysql_username}:{mysql_password}@{mysql_server}/{database_name}')
 
         # Query data
         daily_avg = read_sql('SELECT * FROM daily_avg', con=db_connection)
@@ -139,8 +187,8 @@ def import_data(root):
         if not path.exists(file_path):
             raise FileNotFoundError(f"The file '{file_path}' does not exist.")
 
-        # Establish database connection
-        db_connection = create_engine('mysql+mysqlconnector://' + mysql_username + ':' + mysql_password + '@' + mysql_server + '/' + database_name)
+        mysql_username, mysql_password, mysql_server, database_name = get_database_credentials()
+        db_connection = create_engine(f'mysql+mysqlconnector://{mysql_username}:{mysql_password}@{mysql_server}/{database_name}')
 
         data = read_csv(file_path)
 
@@ -175,6 +223,9 @@ def main():
     root.attributes('-topmost', True)
     root.after(100, lambda: root.attributes('-topmost', False))
     root.focus_force()
+    
+    # Get stored credentials
+    mysql_username, mysql_password, mysql_server, database_name = get_database_credentials()
     
     # Ensure the process exits when the window is closed
     root.protocol("WM_DELETE_WINDOW", lambda: (root.destroy(), exit()))
