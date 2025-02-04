@@ -1,3 +1,9 @@
 house_graphs_gui.py
 .idea/
 .DS_Store
+build/
+config.ini
+house_graphs_gui_template.spec
+icon.icns
+build/house_graphs_gui_template/
+dist/
