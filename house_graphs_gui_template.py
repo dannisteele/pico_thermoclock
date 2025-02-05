@@ -8,7 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from sqlalchemy import create_engine
 from datetime import datetime
 from numpy import array, concatenate, amin, amax, reshape
-from sys import exit
+import sys
 from os import path
 
 import configparser
@@ -106,13 +106,16 @@ def plot_data(year, root, frame, save_button):
         dates = date2num(avg_filtered['Date'])
         temperatures = avg_filtered['AvgTemperature'].values
         norm_temp = Normalize(temperatures.min(), temperatures.max())
-        points_temp = array([dates, temperatures]).T.reshape(-1, 1, 2)
-        segments_temp = concatenate([points_temp[:-1], points_temp[1:]], axis=1)
+
         cmap_temp = LinearSegmentedColormap.from_list("temp_gradient", ["blue", "lightgreen", "red"])
-        lc_temp = LineCollection(segments_temp, cmap=cmap_temp, norm=norm_temp)
-        lc_temp.set_array(temperatures)
-        lc_temp.set_linewidth(2)
-        axs[0].add_collection(lc_temp)
+        for segment_dates, segment_values in split_data(dates, temperatures):
+            segments_temp = [[[segment_dates[i], segment_values[i]], [segment_dates[i + 1], segment_values[i + 1]]]
+                             for i in range(len(segment_dates) - 1)]
+            lc_temp = LineCollection(segments_temp, cmap=cmap_temp, norm=norm_temp)
+            lc_temp.set_array(array(segment_values))
+            lc_temp.set_linewidth(2)
+            axs[0].add_collection(lc_temp)
+
         axs[0].set_xlim(datetime(year, 1, 1), datetime(year, 12, 31))
         axs[0].set_ylim(temperatures.min() - 2, temperatures.max() + 2)
         axs[0].set_title(f"Daily Average Temperature for {year}")
@@ -123,13 +126,16 @@ def plot_data(year, root, frame, save_button):
         # Plot daily average humidity with gradient
         humidities = avg_filtered['AvgHumidity'].values
         norm_hum = Normalize(humidities.min(), humidities.max())
-        points_hum = array([dates, humidities]).T.reshape(-1, 1, 2)
-        segments_hum = concatenate([points_hum[:-1], points_hum[1:]], axis=1)
+
         cmap_hum = LinearSegmentedColormap.from_list("hum_gradient", ["cyan", "blue"])
-        lc_hum = LineCollection(segments_hum, cmap=cmap_hum, norm=norm_hum)
-        lc_hum.set_array(humidities)
-        lc_hum.set_linewidth(2)
-        axs[1].add_collection(lc_hum)
+        for segment_dates, segment_values in split_data(dates, humidities):
+            segments_hum = [[[segment_dates[i], segment_values[i]], [segment_dates[i + 1], segment_values[i + 1]]]
+                            for i in range(len(segment_dates) - 1)]
+            lc_hum = LineCollection(segments_hum, cmap=cmap_hum, norm=norm_hum)
+            lc_hum.set_array(array(segment_values))
+            lc_hum.set_linewidth(2)
+            axs[1].add_collection(lc_hum)
+
         axs[1].set_xlim(datetime(year, 1, 1), datetime(year, 12, 31))
         axs[1].set_ylim(humidities.min() - 5, humidities.max() + 5)
         axs[1].set_title(f"Daily Average Humidity for {year}")
@@ -138,14 +144,27 @@ def plot_data(year, root, frame, save_button):
         axs[1].grid(True)
 
         # Plot min and max temperatures
-        axs[2].plot(min_max_filtered['Date'], min_max_filtered['MinTemperature'], label='Min Temp', color='blue')
-        axs[2].plot(min_max_filtered['Date'], min_max_filtered['MaxTemperature'], label='Max Temp', color='red')
+        # Convert dates to numeric values
+        dates = date2num(min_max_filtered['Date'])
+        min_temps = min_max_filtered['MinTemperature'].values
+        max_temps = min_max_filtered['MaxTemperature'].values
+
+        # Plot Min Temperature
+        for i, (segment_dates, segment_values) in enumerate(split_data(dates, min_temps)):
+            axs[2].plot(segment_dates, segment_values, label='Min Temp' if i == 0 else "", color='blue')
+
+        # Plot Max Temperature
+        for i, (segment_dates, segment_values) in enumerate(split_data(dates, max_temps)):
+            axs[2].plot(segment_dates, segment_values, label='Max Temp' if i == 0 else "", color='red')
+        
+
         axs[2].set_xlim(datetime(year, 1, 1), datetime(year, 12, 31))
         axs[2].set_title(f"Daily Min and Max Temperatures for {year}")
         axs[2].xaxis.set_major_locator(MonthLocator())
         axs[2].xaxis.set_major_formatter(DateFormatter('%b'))
         axs[2].grid(True)
         axs[2].legend()
+        
 
         # Add spacing between subplots
         fig.tight_layout(pad=1.0)
@@ -210,7 +229,26 @@ def import_data(root):
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
+def split_data(dates, values):
+    """Splits data into segments, ensuring there are no gaps in the time series."""
+    segments = []
+    segment_dates = []
+    segment_values = []
 
+    for i in range(len(dates)):
+        if i > 0 and (dates[i] - dates[i - 1]) > 1:  # If there's a gap, start a new segment
+            if segment_dates:
+                segments.append((segment_dates, segment_values))
+            segment_dates = []
+            segment_values = []
+
+        segment_dates.append(dates[i])
+        segment_values.append(values[i])
+
+    if segment_dates:
+        segments.append((segment_dates, segment_values))  # Add the last segment
+
+    return segments
 
 # GUI setup
 def main():
